@@ -1,10 +1,16 @@
-// Used to print to the toy OS terminal
+// Used to print to the blog OS terminal
 
 use volatile::Volatile;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+// NB: A couple of notes on why we use:
+// - lazy_static: used to define "dynamic" or lazily defined static variables 
+// (we don't need to use actual const functions or actual const/static values)
+// - Mutex: we want to have access this synchronously and mutate this,
+// because having a mutable static is really dangerous. Using a Mutex 
+// spinlock, we get interior mutability and keep data races away
 lazy_static! {
   pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
     row_position: 0,
@@ -14,7 +20,7 @@ lazy_static! {
   });
 }
 
-// Print macros
+// Print macros, so that print! and println! are used to print to the VGA buffer
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
@@ -70,11 +76,13 @@ struct ScreenChar {
 const BUFFER_WIDTH: usize = 80;
 const BUFFER_HEIGHT: usize = 25;
 
+// The actual VGA buffer for the screen
 #[repr(transparent)]
 struct Buffer {
   chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT]
 }
 
+// The type and methods used to implement the WRITER static variable
 pub struct Writer {
   row_position: usize,
   column_position: usize,
