@@ -1,3 +1,5 @@
+// Used to print to the toy OS terminal
+
 use volatile::Volatile;
 use core::fmt;
 use lazy_static::lazy_static;
@@ -12,6 +14,7 @@ lazy_static! {
   });
 }
 
+// Print macros
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
@@ -23,6 +26,7 @@ macro_rules! println {
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
+// Colours
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -55,6 +59,7 @@ impl ColorCode {
   }
 }
 
+// Screen character representation in VGA buffer
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(C)]
 struct ScreenChar {
@@ -148,4 +153,27 @@ impl fmt::Write for Writer {
 pub fn _print(args: fmt::Arguments) {
   use core::fmt::Write;
   WRITER.lock().write_fmt(args).unwrap();
+}
+
+#[test_case]
+fn test_println_simple() {
+  println!("This does not panic");
+}
+
+#[test_case]
+fn test_println_many() {
+  for _ in 0..200 {
+    println!("test_println_many output");
+  }
+}
+
+#[test_case]
+fn test_println_output() {
+  let s = "Some test string that fits on a single line";
+  println!("{}", s);
+  for (i, c) in s.chars().enumerate() {
+    let writer = WRITER.lock();
+    let screen_char = writer.buffer.chars[writer.row_position - 1][i].read();
+    assert_eq!(char::from(screen_char.ascii_char), c);
+  }
 }
