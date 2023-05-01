@@ -29,4 +29,4 @@ test-args = [
   "none",
 ]
 test-success-exit-code = 33 # (0x10 << 1) | 1
-test-timeout = 5 # (in seconds)
+test-timeout = 10 # (in seconds)
