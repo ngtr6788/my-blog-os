@@ -1,7 +1,9 @@
 // Used to print to the blog OS terminal
 
 use volatile::Volatile;
+use x86_64::instructions::interrupts::without_interrupts;
 use core::fmt;
+use core::fmt::Write;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
@@ -159,8 +161,10 @@ impl fmt::Write for Writer {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-  use core::fmt::Write;
-  WRITER.lock().write_fmt(args).unwrap();
+
+  without_interrupts(|| {
+    WRITER.lock().write_fmt(args).unwrap();
+  });
 }
 
 #[test_case]
@@ -178,10 +182,12 @@ fn test_println_many() {
 #[test_case]
 fn test_println_output() {
   let s = "Some test string that fits on a single line";
-  println!("{}", s);
-  for (i, c) in s.chars().enumerate() {
-    let writer = WRITER.lock();
-    let screen_char = writer.buffer.chars[writer.row_position - 1][i].read();
-    assert_eq!(char::from(screen_char.ascii_char), c);
-  }
+  without_interrupts(|| {
+    let mut writer = WRITER.lock();
+    writeln!(writer, "\n{}", s).expect("writeln failed");
+    for (i, c) in s.chars().enumerate() {
+      let screen_char = writer.buffer.chars[writer.row_position - 1][i].read();
+      assert_eq!(char::from(screen_char.ascii_char), c);
+    }
+  })
 }
